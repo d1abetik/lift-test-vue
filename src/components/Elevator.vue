@@ -4,14 +4,14 @@ const props = defineProps<{
   status: boolean,
   stage: number,
   currentStage: number
-}>();
+}>()
 
 console.log(props.status);
 </script>
 
 <template>
   <div :id="String(props.stage)" :class="`elevator ${props.stage === props.currentStage ? 'active' : 'inactive'}`">
-    <div :hidden="props.stage !== props.currentStage">
+    <div v-if="props.currentStage !== props.stage && props.status">
       <span>{{props.stage}}</span>
       <img src="../assets/arrowDwn.svg" alt="arrow" :class="`${props.stage > props.currentStage ? 'rev' : ''}`">
     </div>
@@ -27,10 +27,12 @@ console.log(props.status);
   position: relative;
 }
 
-.elevator span {
+.elevator > div > span {
   position: absolute;
   color: white;
   font-size: 30px;
+  background-color: red;
+  padding: 10px;
   z-index: 2;
   left: 40px;
   top: 70px;

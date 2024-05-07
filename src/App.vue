@@ -4,7 +4,6 @@ import {reactive, ref, toRef} from "vue";
 
 interface Store {
   status: boolean;
-  stage: number;
   currentStage: number;
 }
 
@@ -22,47 +21,75 @@ const settings = {
 }
 
 const store: Store = reactive({
-  status: true,
-  stage: 1,
+  status: false,
   currentStage: 1,
 });
 
 const status = toRef(store, 'status');
 
-const stage = toRef(store, 'stage');
-
 const currentStage = toRef(store, 'currentStage');
 
-const disabledBtn = ref<boolean>(false);
+const callQueue = ref<number[]>([]);
+
+const isRunning = ref(false);
 
 const handleOffBtn = async () => {
-  for (let i = 0; i < 2; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    disabledBtn.value = !disabledBtn.value;
-  }
+  console.log('start timer dead 3s')
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+  console.log('chill timer dead');
+  isRunning.value = false;
 }
 
-const handleLiftCall = (n:number) => {
+const runLift = async (n:number) => {
+  const step = Math.abs(n - currentStage.value);
+
+  if (n > currentStage.value) {
+    const inter = setInterval(() => currentStage.value += 1, 1000);
+    await new Promise((resolve) => setTimeout(() => {
+      clearInterval(inter)
+      resolve('good');
+    }, 1000 * step));
+  } else {
+    const inter = setInterval(() => currentStage.value -= 1,1000);
+    await new Promise((resolve) => setTimeout(() => {
+      clearInterval(inter)
+      resolve('good');
+    }, 1000 * step));
+  }
+  await handleOffBtn();
+}
+
+const handleLiftCall = async (n:number): Promise<void> => {
   if (n === currentStage.value) {
     return;
   }
 
-  stage.value = n;
+  callQueue.value.push(n);
 
-  const step = Math.abs(n - currentStage.value);
+  if (isRunning.value) {
+    return;
+  }
 
-  status.value = false;
+  isRunning.value = true;
 
-  if (n > currentStage.value) {
-    const inter = setInterval(() => currentStage.value += 1, 1000);
-    setTimeout(() => clearInterval(inter), 1000 * step);
-  } else {
-    const inter = setInterval(() => currentStage.value -= 1,1000);
-    setTimeout(() => clearInterval(inter), 1000 * step);
+  console.log(callQueue.value);
+
+  const recursiveLiftStack = async () => {
+    const nextCall = callQueue.value.shift();
+    if (nextCall) {
+      console.log('start runLift');
+      await runLift(nextCall);
+    }
+
+    if (callQueue.value.length !== 0) {
+      await recursiveLiftStack();
+    }
   }
   status.value = true;
+  await recursiveLiftStack();
 
-  handleOffBtn();
+  status.value = false;
+  console.log('end');
 }
 </script>
 
@@ -75,7 +102,7 @@ const handleLiftCall = (n:number) => {
     </div>
     <div class="liftStage">
       <div class="stage" v-for="n in settings.listNum" :key="n">
-        <button :class="`btn-lft ${disabledBtn ? 'disabled' : ''}`" @click="() => handleLiftCall(n)" :disabled="disabledBtn">{{n}}</button>
+        <button :class="`btn-lft`" @click="() => handleLiftCall(n)">{{n}}</button>
       </div>
     </div>
   </main>
