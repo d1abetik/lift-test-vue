@@ -1,32 +1,59 @@
 <script setup lang="ts">
-
-import {watchEffect} from "vue";
-
 const props = defineProps<{
   lifts: number
   status: boolean,
-  stage: number
+  stage: number,
+  currentStage: number
 }>();
 
-watchEffect(() => {
-  console.log()
-  const doc = document.getElementById('elevator');
-  if (doc) {
-    doc.setAttribute('style', `grid-row-start: ${props.stage}`);
-  }
-})
+console.log(props.status);
 </script>
 
 <template>
-  <div id="elevator" :style="`grid-row-start: ${props.stage}`" :class="`${props.stage ? 'active' : 'inactive'}`">
-    <img src="../assets/arrow.svg" alt="arrow" :hidden="props.status">
+  <div :id="String(props.stage)" :class="`elevator ${props.stage === props.currentStage ? 'active' : 'inactive'}`">
+    <div :hidden="props.stage !== props.currentStage">
+      <span>{{props.stage}}</span>
+      <img src="../assets/arrowDwn.svg" alt="arrow" :class="`${props.stage > props.currentStage ? 'rev' : ''}`">
+    </div>
   </div>
 </template>
 
 <style scoped>
-#elevator {
-  padding: 10px;
+.elevator {
   height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.elevator span {
+  position: absolute;
+  color: white;
+  font-size: 30px;
+  z-index: 2;
+  left: 40px;
+  top: 70px;
+}
+
+.rev {
+  transform: rotate(180deg);
+}
+
+.disabled {
+  opacity: 0;
+}
+
+.abled {
+  opacity: 1;
+}
+
+.elevator > div > img {
+  height: 40px;
+  width: 40px;
+  position: absolute;
+  z-index: 1;
+  top: 70px;
 }
 
 .active {
