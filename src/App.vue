@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import Elevator from "@/components/Elevator.vue";
-import {reactive, ref, toRef} from "vue";
+import {reactive, watch} from "vue";
 
-interface Store {
+export interface Store {
   status: boolean;
   currentStage: number;
+  goalStage: number;
+  callQueue: number[];
+  isRunning: boolean;
+  waitingStatus: boolean;
+  upDown: string;
 }
 
 const reverseList = (n:number) => {
@@ -22,87 +27,106 @@ const settings = {
 
 const store: Store = reactive({
   status: false,
+  goalStage: 0,
   currentStage: 1,
+  callQueue: [],
+  isRunning: false,
+  waitingStatus: false,
+  upDown: '',
 });
 
-const status = toRef(store, 'status');
+const saveToLocalStorage = (store: Store) => {
+  localStorage.setItem('data', JSON.stringify(store));
+};
 
-const currentStage = toRef(store, 'currentStage');
-
-const callQueue = ref<number[]>([]);
-
-const isRunning = ref(false);
+watch(store, (newValue) => {
+  saveToLocalStorage(newValue);
+}, { deep: true });
 
 const handleOffBtn = async () => {
-  console.log('start timer dead 3s')
+  store.waitingStatus = true;
   await new Promise((resolve) => setTimeout(resolve, 3000));
-  console.log('chill timer dead');
-  isRunning.value = false;
+  store.goalStage = 0;
+  store.isRunning = false;
+  store.waitingStatus = false;
 }
 
 const runLift = async (n:number) => {
-  const step = Math.abs(n - currentStage.value);
+  const step = Math.abs(n - store.currentStage);
 
-  if (n > currentStage.value) {
-    const inter = setInterval(() => currentStage.value += 1, 1000);
-    await new Promise((resolve) => setTimeout(() => {
-      clearInterval(inter)
-      resolve('good');
-    }, 1000 * step));
-  } else {
-    const inter = setInterval(() => currentStage.value -= 1,1000);
-    await new Promise((resolve) => setTimeout(() => {
-      clearInterval(inter)
-      resolve('good');
-    }, 1000 * step));
+  for (let i = 0; i < step; i += 1) {
+    if (n > store.currentStage) {
+      store.upDown = 'up';
+      await new Promise(resolve => setTimeout(() => {
+        store.currentStage += 1;
+        resolve('done');
+      }, 1000));
+    } else {
+      store.upDown = 'down';
+      await new Promise(resolve => setTimeout(() => {
+        store.currentStage -= 1;
+        resolve('done');
+      }, 1000));
+    }
   }
   await handleOffBtn();
 }
 
-const handleLiftCall = async (n:number): Promise<void> => {
-  if (n === currentStage.value) {
+const handleLiftCall = async (n:number) => {
+  if (n === store.currentStage) {
     return;
   }
 
-  callQueue.value.push(n);
-
-  if (isRunning.value) {
+  if (store.callQueue.includes(n)) {
     return;
   }
 
-  isRunning.value = true;
+  store.callQueue.push(n);
 
-  console.log(callQueue.value);
+  if (store.isRunning) {
+    return;
+  }
 
   const recursiveLiftStack = async () => {
-    const nextCall = callQueue.value.shift();
+    store.isRunning = true;
+    const nextCall = store.callQueue.shift();
     if (nextCall) {
-      console.log('start runLift');
+      store.goalStage = nextCall;
       await runLift(nextCall);
     }
 
-    if (callQueue.value.length !== 0) {
+    if (store.callQueue.length !== 0) {
       await recursiveLiftStack();
     }
   }
-  status.value = true;
+  store.status = true;
   await recursiveLiftStack();
-
-  status.value = false;
+  store.status = false;
   console.log('end');
+}
+
+if (localStorage.getItem('data')) {
+  const savedDataString = localStorage.getItem('data');
+  if (savedDataString) {
+    const savedData = JSON.parse(savedDataString);
+    Object.assign(store, savedData);
+
+    if (store.goalStage || store.callQueue.length > 0) {
+      store.isRunning = false;
+      handleLiftCall(store.goalStage ?? store.callQueue[0]);
+    }
+  }
 }
 </script>
 
 <template>
   <main>
     <div id="grid-lift">
-      <div v-for="lift in settings.listNum">
-        <Elevator :lifts="settings.listOfLifts" :status="status" :currentStage="currentStage" :key="lift" :stage="lift"/>
-      </div>
+      <Elevator v-for="lift in settings.listNum" :lifts="settings.listOfLifts" :store="store" :key="lift" :stage="lift"/>
     </div>
     <div class="liftStage">
       <div class="stage" v-for="n in settings.listNum" :key="n">
-        <button :class="`btn-lft`" @click="() => handleLiftCall(n)">{{n}}</button>
+        <button type="button" :class="`${store.callQueue.includes(n) || n === store.goalStage && store.isRunning ? 'waiting' : 'btn-lft'}`" @click="() => handleLiftCall(n)">{{n}}</button>
       </div>
     </div>
   </main>
@@ -130,6 +154,24 @@ const handleLiftCall = async (n:number): Promise<void> => {
   width: 40px;
   height: 40px;
   background-color: #2da0c9;
+  cursor: pointer;
+  outline: none;
+  margin-left: 60px;
+}
+
+.waiting {
+  width: 40px;
+  height: 40px;
+  background-color: purple;
+  cursor: pointer;
+  outline: none;
+  margin-left: 60px;
+}
+
+.active-btn {
+  width: 40px;
+  height: 40px;
+  background-color: blue;
   cursor: pointer;
   outline: none;
   margin-left: 60px;

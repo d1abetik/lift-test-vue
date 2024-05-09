@@ -1,19 +1,27 @@
 <script setup lang="ts">
-const props = defineProps<{
-  lifts: number
-  status: boolean,
-  stage: number,
-  currentStage: number
+import type { Store } from "@/App.vue";
+
+const {store, stage, lifts} = defineProps<{
+  store: Store;
+  stage: number;
+  lifts: number;
 }>()
 
-console.log(props.status);
 </script>
 
 <template>
-  <div :id="String(props.stage)" :class="`elevator ${props.stage === props.currentStage ? 'active' : 'inactive'}`">
-    <div v-if="props.currentStage !== props.stage && props.status">
-      <span>{{props.stage}}</span>
-      <img src="../assets/arrowDwn.svg" alt="arrow" :class="`${props.stage > props.currentStage ? 'rev' : ''}`">
+  <div
+    :id="`st-${stage}`"
+    :class="[
+      'elevator',
+      stage === store.currentStage ? 'active' : 'inactive',
+      store.waitingStatus ? 'lightup' : '',
+      store.isRunning && store.currentStage === stage ? (store.upDown === 'up' ? 'el-up' : 'el-down') : ''
+    ]
+  ">
+    <div v-if="store.currentStage === stage && store.status">
+      <span>{{store.currentStage !== store.goalStage ? (store.upDown === 'up' ? stage + 1 : stage - 1) : stage}}</span>
+      <img src="../assets/arrowDwn.svg" alt="arrow" :class="`${store.upDown === 'up' ? 'rev' : ''}`">
     </div>
   </div>
 </template>
@@ -27,6 +35,30 @@ console.log(props.status);
   position: relative;
 }
 
+.el-up {
+  animation: slideIn 0.5s ease-in-out forwards;
+}
+
+.el-down {
+  animation: slideOut 0.5s ease-in-out forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(0%);
+  } to {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateY(0%);
+  } to {
+    transform: translateY(100%);
+  }
+}
+
 .elevator > div > span {
   position: absolute;
   color: white;
@@ -38,16 +70,15 @@ console.log(props.status);
   top: 70px;
 }
 
+.lightup {
+  animation-name: blink;
+  animation-timing-function: linear;
+  animation-duration: 1.5s;
+  animation-iteration-count: infinite;
+}
+
 .rev {
   transform: rotate(180deg);
-}
-
-.disabled {
-  opacity: 0;
-}
-
-.abled {
-  opacity: 1;
 }
 
 .elevator > div > img {
@@ -61,10 +92,17 @@ console.log(props.status);
 .active {
   background-color: #2da0c9;
   border: 1px solid #c5c5c5;
+  z-index: 4;
 }
 
 .inactive {
   background-color: white;
   border: 1px solid #c5c5c5;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 </style>
